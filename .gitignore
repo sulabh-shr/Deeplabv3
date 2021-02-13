@@ -1,0 +1,9 @@
+data/
+run/
+__pycache__/
+dataloaders/__pycache__/
+dataloaders/datasets/__pycache__/
+modeling/__pycache__/
+modeling/backbone/__pycache__/
+modeling/sync_batchnorm/__pycache__/
+utils/__pycache__/

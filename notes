@@ -1,0 +1,7 @@
+Required Libraries
+    - tqdm
+    - numpy
+    - scipy
+    - matplotlib
+    - seaborn
+    - scikit-learn

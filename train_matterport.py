@@ -10,7 +10,7 @@ from modeling.utils import set_bn_momentum
 import matplotlib.pyplot as plt
 from parameters import Parameters
 from dataloaders.datasets import matterport
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 import torch
 
 par = Parameters()
@@ -22,12 +22,26 @@ summary = TensorboardSummary(saver.experiment_dir)
 writer = summary.create_summary()
 
 #=========================================================== Define Dataloader ==================================================
-dataset_train = matterport.MatterportDataset(par, dataset_dir='/home/yimeng/Datasets/MP3D', split='train')
+train_scene_names = ['7y3sRwLe3Va_1', '8WUmhLawc2A_0', '29hnd4uzFmX_0', 'cV4RVeZvu5T_0', 
+            'cV4RVeZvu5T_1', 'e9zR4mvMWw7_0','GdvgFV5R1Z5_0', 'i5noydFURQK_0', 's8pcmisQ38h_0', 
+            's8pcmisQ38h_1', 'S9hNv5qa7GM_0', 'V2XKFyX4ASd_0', 'V2XKFyX4ASd_1', 'V2XKFyX4ASd_2',
+            'TbHJrupSAjP_0', 'TbHJrupSAjP_1', 'zsNo4HB9uLZ_0', 'RPmz2sHmrrY_0', 'WYY7iVyf5p8_0', 
+            'WYY7iVyf5p8_1', 'YFuZgdQ5vWj_0', 'jh4fc5c5qoQ_1', 'cV4RVeZvu5T_2',]
+train_datasets = []
+for scene_name in train_scene_names:
+    dataset_train = matterport.MatterportDataset(par, dataset_dir='/projects/kosecka/yimeng/Datasets/MP3D', split='train', scene_name=scene_name)
+    train_datasets.append(dataset_train)
 num_classes = dataset_train.NUM_CLASSES
-dataloader_train = DataLoader(dataset_train, batch_size=par.batch_size, shuffle=True, num_workers=int(par.batch_size/2))
+datasets_train = ConcatDataset(train_datasets)
+dataloader_train = DataLoader(datasets_train, batch_size=par.batch_size, shuffle=True, num_workers=int(par.batch_size/2))
 
-dataset_val = matterport.MatterportDataset(par, dataset_dir='/home/yimeng/Datasets/MP3D', split='val')
-dataloader_val = DataLoader(dataset_val, batch_size=par.test_batch_size, shuffle=False, num_workers=int(par.test_batch_size/2))
+val_scene_names = ['2t7WUuJeko7_0',]
+val_datasets = []
+for scene_name in val_scene_names:
+    dataset_val = matterport.MatterportDataset(par, dataset_dir='/projects/kosecka/yimeng/Datasets/MP3D', split='val', scene_name=scene_name)
+    val_datasets.append(dataset_val)
+datasets_val = ConcatDataset(val_datasets)
+dataloader_val = DataLoader(datasets_val, batch_size=par.test_batch_size, shuffle=False, num_workers=int(par.test_batch_size/2))
 
 #================================================================================================================================
 # Define network

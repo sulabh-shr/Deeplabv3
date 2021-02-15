@@ -9,30 +9,21 @@ import random
 
 class MatterportDataset(data.Dataset):
     
-    def __init__(self, par, dataset_dir, split='train'):
+    def __init__(self, par, dataset_dir, split='train', scene_name = None):
 
         self.dataset_dir = dataset_dir
         self.split = split
         self.par = par
 
-        if self.split == 'train':
-            '''
-            self.scene_names = ['7y3sRwLe3Va_1', 
-            '8WUmhLawc2A_0', '29hnd4uzFmX_0', 'cV4RVeZvu5T_0', 'cV4RVeZvu5T_1', 'e9zR4mvMWw7_0',
-            'GdvgFV5R1Z5_0', 'i5noydFURQK_0', 's8pcmisQ38h_0', 's8pcmisQ38h_1',
-            'S9hNv5qa7GM_0', 'V2XKFyX4ASd_0', 'V2XKFyX4ASd_1', 'V2XKFyX4ASd_2',
-            'TbHJrupSAjP_0', 'TbHJrupSAjP_1', 'zsNo4HB9uLZ_0',
-            '2t7WUuJeko7_0', 'RPmz2sHmrrY_0', 'WYY7iVyf5p8_0', 'WYY7iVyf5p8_1', 'YFuZgdQ5vWj_0',
-            'RPmz2sHmrrY_0', 'WYY7iVyf5p8_0', 'WYY7iVyf5p8_1', 'YFuZgdQ5vWj_0']
-            '''
-            self.scene_names = ['2t7WUuJeko7_0',]
-        elif self.split == 'val':
-            self.scene_names = ['2t7WUuJeko7_0',]
+        if scene_name is None:
+            assert(1==2, 'scene name is not provided.')
+        else:
+            self.scene_name = scene_name
+            print('load scene: {}'.format(scene_name))
 
-        self.current_scene = random.choice(self.scene_names)
-        img_act_dict = np.load('{}/{}/img_act_dict.npy'.format(self.dataset_dir, self.current_scene), allow_pickle=True).item()
+        img_act_dict = np.load('{}/{}/img_act_dict.npy'.format(self.dataset_dir, self.scene_name), allow_pickle=True).item()
         self.img_list = list(img_act_dict.keys())
-        self.ins2cat_dict = np.load('{}/{}/dict_ins2category.npy'.format(self.dataset_dir, self.current_scene), allow_pickle=True).item()
+        self.ins2cat_dict = np.load('{}/{}/dict_ins2category.npy'.format(self.dataset_dir, self.scene_name), allow_pickle=True).item()
 
         self.void_classes = [0, -1] # matterport has category id -1. Not sure why.
         self.valid_classes = [x for x in range(1, 41)]
@@ -53,27 +44,17 @@ class MatterportDataset(data.Dataset):
         return len(self.img_list)
 
     def __getitem__(self, index):
-        rand_index = random.choice(list(range(len(self.img_list))))
-
-        npy_file = np.load('{}/{}/others/{}.npy'.format(self.dataset_dir, self.current_scene, self.img_list[rand_index]), allow_pickle=True).item()
+        npy_file = np.load('{}/{}/others/{}.npy'.format(self.dataset_dir, self.scene_name, self.img_list[index]), allow_pickle=True).item()
         InsSeg_img = npy_file['sseg']
         sseg_img = self.convertInsSegToSSeg(InsSeg_img, self.ins2cat_dict)
 
-        img_path = '{}/{}/images/{}.jpg'.format(self.dataset_dir, self.current_scene, self.img_list[rand_index])
+        img_path = '{}/{}/images/{}.jpg'.format(self.dataset_dir, self.scene_name, self.img_list[index])
 
         _img = Image.open(img_path).convert('RGB')
         _tmp = self.encode_segmap(sseg_img)
         _target = Image.fromarray(_tmp)
 
         sample = {'image': _img, 'label': _target}
-
-        # update the scene only at training stage
-        if self.split == 'train' and random.random() < 0.01: # 1/10 chance change scene:
-            self.current_scene = random.choice(self.scene_names)
-            print('updated scene: {}'.format(self.current_scene))
-            img_act_dict = np.load('{}/{}/img_act_dict.npy'.format(self.dataset_dir, self.current_scene), allow_pickle=True).item()
-            self.img_list = list(img_act_dict.keys())
-            self.ins2cat_dict = np.load('{}/{}/dict_ins2category.npy'.format(self.dataset_dir, self.current_scene), allow_pickle=True).item()
 
         if self.split == 'train':
             return self.transform_tr(sample)

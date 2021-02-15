@@ -17,8 +17,8 @@ class Parameters(object):
 
 		# training hyper params
 		self.epochs = 200
-		self.batch_size = 2
-		self.test_batch_size = 2
+		self.batch_size = 32
+		self.test_batch_size = 32
 		self.use_balanced_weights = False
 
 		# optimizer params

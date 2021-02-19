@@ -22,17 +22,15 @@ summary = TensorboardSummary(saver.experiment_dir)
 writer = summary.create_summary()
 
 #=========================================================== Define Dataloader ==================================================
-dataset_train = cityscapes.CityscapesDataset(par, dataset_dir='data/cityscapes', split='train')
+dataset_train = cityscapes.CityscapesDataset(par, dataset_dir='/projects/kosecka/yimeng/Datasets/Cityscapes', split='train')
 num_class = dataset_train.NUM_CLASSES
 dataloader_train = DataLoader(dataset_train, batch_size=par.batch_size, shuffle=True, num_workers=int(par.batch_size/2))
 
-dataset_val = cityscapes.CityscapesDataset(par, dataset_dir='data/cityscapes', split='val')
+dataset_val = cityscapes.CityscapesDataset(par, dataset_dir='/projects/kosecka/yimeng/Datasets/Cityscapes', split='val')
 dataloader_val = DataLoader(dataset_val, batch_size=par.test_batch_size, shuffle=False, num_workers=int(par.test_batch_size/2))
 
 #================================================================================================================================
 # Define network
-#model = deeplabv3plus_resnet101(num_classes=num_class, output_stride=par.out_stride).cuda()
-#model = deeplabv3plus_mobilenet(num_classes=num_class, output_stride=par.out_stride).cuda()
 model = deeplabv3plus_resnet50(num_classes=num_class, output_stride=par.out_stride).cuda()
 
 set_bn_momentum(model.backbone, momentum=0.01)
@@ -79,15 +77,25 @@ for epoch in range(par.epochs):
         
         #================================================ compute loss =============================================
         output = model(images)
+        #print('output.shape = {}'.format(output.shape))
+
         loss = criterion(output, targets)
 
         #================================================= compute gradient =================================================
         optimizer.zero_grad()
+
         loss.backward()
         optimizer.step()
         train_loss += loss.item()
         print('Train loss: %.3f' % (train_loss / (iter_num + 1)))
         writer.add_scalar('train/total_loss_iter', loss.item(), iter_num + num_img_tr * epoch)
+
+        '''
+        # Show 10 * 3 inference results each epoch
+        if iter_num % (num_img_tr // 10) == 0:
+            global_step = iter_num + num_img_tr * epoch
+            summary.visualize_image(writer, par.dataset, images, targets, output, global_step)
+        '''
 
     writer.add_scalar('train/total_loss_epoch', train_loss, epoch)
     print('[Epoch: %d, numImages: %5d]' % (epoch, iter_num * par.batch_size + images.data.shape[0]))

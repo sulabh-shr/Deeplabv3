@@ -24,7 +24,7 @@ class SegmentationLosses(object):
             criterion = criterion.cuda()
 
         loss = criterion(logit, target.long())
-        #print('loss = {}'.format(loss.item()))
+
         #if self.batch_average:
         #    loss /= n
 

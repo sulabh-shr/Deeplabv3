@@ -34,8 +34,8 @@ class CityscapesDataset(data.Dataset):
 
     def __getitem__(self, index):
 
-        img_path = '{}/{}'.format(self.dataset_dir, self.img_list[index]['rgb_path'])
-        lbl_path = '{}/{}'.format(self.dataset_dir, self.img_list[index]['semSeg_path'])
+        img_path = '{}/{}'.format(self.dataset_dir, self.img_list[index]['left_img'])
+        lbl_path = '{}/{}'.format(self.dataset_dir, self.img_list[index]['semSeg'])
 
         _img = Image.open(img_path).convert('RGB')
         _tmp = np.array(Image.open(lbl_path), dtype=np.uint8)

@@ -54,7 +54,7 @@ import torch.optim as optim
 train_params = [{'params': model.backbone.parameters(), 'lr': par.lr*0.1},
                 {'params': model.classifier.parameters(), 'lr': par.lr}]
 optimizer = optim.SGD(train_params, lr=par.lr, momentum=0.9, weight_decay=1e-4)
-scheduler = PolyLR(optimizer, 10000, power=0.9)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=3)
 
 # Define Criterion
 # whether to use class balanced weights
@@ -160,6 +160,7 @@ for epoch in range(par.epochs):
                 'optimizer': optimizer.state_dict(),
                 'best_pred': best_pred,
             }, is_best)
+    scheduler.step(mIoU)
 
 trainer.writer.close()
 

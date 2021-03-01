@@ -7,13 +7,13 @@ from utils.summaries import TensorboardSummary
 from utils.metrics import Evaluator
 from utils.lr_scheduler import PolyLR
 from modeling.utils import set_bn_momentum
-
-from parameters import Parameters
-from dataloaders.datasets import cityscapes
-from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+from parameters_ade20k import Parameters_ADE20K
+from dataloaders.datasets import ade20k
+from torch.utils.data import DataLoader, ConcatDataset
 import torch
 
-par = Parameters()
+par = Parameters_ADE20K()
 
 #=========================================================== Define Saver =======================================================
 saver = Saver(par)
@@ -22,16 +22,17 @@ summary = TensorboardSummary(saver.experiment_dir)
 writer = summary.create_summary()
 
 #=========================================================== Define Dataloader ==================================================
-dataset_train = cityscapes.CityscapesDataset(par, dataset_dir='/projects/kosecka/yimeng/Datasets/Cityscapes', split='train')
+
+dataset_train = ade20k.ADE20KDataset(par, dataset_dir='/projects/kosecka/yimeng/Datasets/ADE20K/Semantic_Segmentation', split='train')
 num_class = dataset_train.NUM_CLASSES
 dataloader_train = DataLoader(dataset_train, batch_size=par.batch_size, shuffle=True, num_workers=int(par.batch_size/2))
-
-dataset_val = cityscapes.CityscapesDataset(par, dataset_dir='/projects/kosecka/yimeng/Datasets/Cityscapes', split='val')
+num_classes = dataset_train.NUM_CLASSES
+dataset_val = ade20k.ADE20KDataset(par, dataset_dir='/projects/kosecka/yimeng/Datasets/ADE20K/Semantic_Segmentation', split='val')
 dataloader_val = DataLoader(dataset_val, batch_size=par.test_batch_size, shuffle=False, num_workers=int(par.test_batch_size/2))
 
 #================================================================================================================================
 # Define network
-model = deeplabv3plus_resnet50(num_classes=num_class, output_stride=par.out_stride).cuda()
+model = deeplabv3plus_resnet50(num_classes=num_classes, output_stride=par.out_stride).cuda()
 
 set_bn_momentum(model.backbone, momentum=0.01)
 
@@ -40,7 +41,7 @@ import torch.optim as optim
 train_params = [{'params': model.backbone.parameters(), 'lr': par.lr*0.1},
                 {'params': model.classifier.parameters(), 'lr': par.lr}]
 optimizer = optim.SGD(train_params, lr=par.lr, momentum=0.9, weight_decay=1e-4)
-scheduler = PolyLR(optimizer, 10000, power=0.9)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=3)
 
 # Define Criterion
 # whether to use class balanced weights
@@ -48,7 +49,7 @@ weight = None
 criterion = SegmentationLosses(weight=weight, cuda=par.cuda).build_loss(mode=par.loss_type)
 
 # Define Evaluator
-evaluator = Evaluator(num_class)
+evaluator = Evaluator(num_classes)
 
 #===================================================== Resuming checkpoint ====================================================
 best_pred = 0.0
@@ -73,29 +74,20 @@ for epoch in range(par.epochs):
         images, targets = sample['image'], sample['label']
         #print('images = {}'.format(images.shape))
         #print('targets = {}'.format(targets.shape))
+        #assert 1==2
         images, targets = images.cuda(), targets.cuda()
         
         #================================================ compute loss =============================================
         output = model(images)
-        #print('output.shape = {}'.format(output.shape))
-
         loss = criterion(output, targets)
 
         #================================================= compute gradient =================================================
         optimizer.zero_grad()
-
         loss.backward()
         optimizer.step()
         train_loss += loss.item()
         print('Train loss: %.3f' % (train_loss / (iter_num + 1)))
         writer.add_scalar('train/total_loss_iter', loss.item(), iter_num + num_img_tr * epoch)
-
-        '''
-        # Show 10 * 3 inference results each epoch
-        if iter_num % (num_img_tr // 10) == 0:
-            global_step = iter_num + num_img_tr * epoch
-            summary.visualize_image(writer, par.dataset, images, targets, output, global_step)
-        '''
 
     writer.add_scalar('train/total_loss_epoch', train_loss, epoch)
     print('[Epoch: %d, numImages: %5d]' % (epoch, iter_num * par.batch_size + images.data.shape[0]))
@@ -152,6 +144,7 @@ for epoch in range(par.epochs):
                 'optimizer': optimizer.state_dict(),
                 'best_pred': best_pred,
             }, is_best)
+    scheduler.step(mIoU)
 
 writer.close()
 

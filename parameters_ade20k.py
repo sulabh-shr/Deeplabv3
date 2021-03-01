@@ -1,10 +1,10 @@
 import os
 
-class Parameters(object):
+class Parameters_ADE20K(object):
 	def __init__(self):
 		self.backbone = 'resnet' #'resnet', 'xception', 'drn', 'mobilenet'
 		self.out_stride = 16 #8
-		self.dataset = 'mp3d' # 'pascal', 'coco', 'cityscapes'
+		self.dataset = 'ade20k' # 'pascal', 'coco', 'cityscapes'
 		self.checkname = 'sseg'
 		self.use_sbd = True
 		self.workers = 4

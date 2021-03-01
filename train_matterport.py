@@ -162,7 +162,7 @@ for epoch in range(par.epochs):
             }, is_best)
     scheduler.step(mIoU)
 
-trainer.writer.close()
+writer.close()
 
 
 

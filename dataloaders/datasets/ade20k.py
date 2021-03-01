@@ -7,39 +7,27 @@ from torchvision import transforms
 from dataloaders import custom_transforms as tr
 import random
 
-class MatterportDataset(data.Dataset):
+class ADE20KDataset(data.Dataset):
     
-    def __init__(self, par, dataset_dir, split='train', scene_name = None):
+    def __init__(self, par, dataset_dir, split='train'):
 
         self.dataset_dir = dataset_dir
         self.split = split
         self.par = par
 
-        if scene_name is None:
-            assert(1==2, 'scene name is not provided.')
-        else:
-            self.scene_name = scene_name
-            print('load scene: {}'.format(scene_name))
+        self.img_list = np.load('{}/{}_img_list.npy'.format(self.dataset_dir, self.split), allow_pickle=True).tolist()
 
-        img_act_dict = np.load('{}/{}/img_act_dict.npy'.format(self.dataset_dir, self.scene_name), allow_pickle=True).item()
-        self.img_list = list(img_act_dict.keys())
-        self.ins2cat_dict = np.load('{}/{}/dict_ins2category.npy'.format(self.dataset_dir, self.scene_name), allow_pickle=True).item()
-
-        self.void_classes = [0, -1, 9, 12, 21, 24, 28, 29, 30, 31, 32, 35, 36, 37, 39, 40] # matterport has category id -1. Not sure why.
-        self.valid_classes = []
-        for x in range(1, 41):
-            if x not in self.void_classes:
-                self.valid_classes.append(x)
-        self.class_names = ['wall', 'floor', 'chair', 'door', 'table', 'picture', 'cabinet', 'cushion', \
-                            'window', 'sofa','bed', 'curtain', 'chest_of_drawers','plant','sink','stairs', \
-                            'ceiling','toilet','stool', 'towel', 'mirror','tv_monitor','shower','column', \
-                            'bathtub', 'counter','fireplace','lighting','beam','railing','shelving','blinds', \
-                            'gym_equipment','seating','board_panel','furniture','appliances','clothes','objects', \
-                            'misc',]
-        self.NUM_CLASSES = len(self.valid_classes) + 1 # add 1 for the void classes
+        self.valid_classes = [1, 4, 6, 8, 9, 11, 15, 16, 19, 20, 23, 24, 25, 28, 29, 38, 40, 48, 51, 66]
+        self.void_classes = []
+        for i in range(1, 151): #ADE has 150 semantic categories
+            if i not in self.valid_classes:
+                self.void_classes.append(i)
+        self.class_names = ['wall', 'floor', 'ceiling', 'bed', 'window', 'cabinet', 'door', 'table', 'curtain', 'chair', 'painting', 'sofa', 'shelf', 'mirror', 'carpet', 'bathtub', 'cushion', 'sink', 'fridge', 'toilet']
+        
+        self.NUM_CLASSES = len(self.valid_classes)
 
         self.ignore_index = 255
-        self.class_map = dict(zip(self.valid_classes, range(self.NUM_CLASSES-1)))
+        self.class_map = dict(zip(self.valid_classes, range(self.NUM_CLASSES)))
 
         print("Found {} {} images".format(len(self.img_list), self.split))
 
@@ -47,14 +35,12 @@ class MatterportDataset(data.Dataset):
         return len(self.img_list)
 
     def __getitem__(self, index):
-        npy_file = np.load('{}/{}/others/{}.npy'.format(self.dataset_dir, self.scene_name, self.img_list[index]), allow_pickle=True).item()
-        InsSeg_img = npy_file['sseg']
-        sseg_img = self.convertInsSegToSSeg(InsSeg_img, self.ins2cat_dict)
-
-        img_path = '{}/{}/images/{}.jpg'.format(self.dataset_dir, self.scene_name, self.img_list[index])
+        img_path = '{}/{}'.format(self.dataset_dir, self.img_list[index]['img'])
+        lbl_path = '{}/{}'.format(self.dataset_dir, self.img_list[index]['anno'])
 
         _img = Image.open(img_path).convert('RGB')
-        _tmp = self.encode_segmap(sseg_img)
+        _tmp = np.array(Image.open(lbl_path), dtype=np.uint8)
+        _tmp = self.encode_segmap(_tmp)
         _target = Image.fromarray(_tmp)
 
         sample = {'image': _img, 'label': _target}
@@ -67,23 +53,29 @@ class MatterportDataset(data.Dataset):
             return self.transform_ts(sample)
 
     def encode_segmap(self, mask):
+        #merge ambiguous classes
+        mask[mask==31] = 20 # armchair -> chair
+        mask[mask==32] = 20 # seat -> chair
+        mask[mask==34] = 16 # desk -> table
+        mask[mask==36] = 11 # wardrobe -> cabinet
+        mask[mask==41] = 1  # base -> wall
+        mask[mask==42] = 1  # pillar -> wall
+        mask[mask==45] = 11 # chest -> cabinet
+        mask[mask==54] = 4  # stairs -> floor
+        mask[mask==58] = 40 # pillow -> cushion
+        mask[mask==65] = 16 # coffee table -> table
+        mask[mask==67] = 18 # flower -> plant
+
         # Put all void classes to 255
         for _voidc in self.void_classes:
-            mask[mask == _voidc] = self.NUM_CLASSES - 1
+            mask[mask == _voidc] = self.ignore_index
         for _validc in self.valid_classes:
             mask[mask == _validc] = self.class_map[_validc]
         return mask
 
-    def convertInsSegToSSeg (self, InsSeg, ins2cat_dict):
-        ins_id_list = list(ins2cat_dict.keys())
-        SSeg = np.zeros(InsSeg.shape, dtype=np.int32)
-        for ins_id in ins_id_list:
-            SSeg = np.where(InsSeg==ins_id, ins2cat_dict[ins_id], SSeg)
-        return SSeg
-
     def transform_tr(self, sample):
         composed_transforms = transforms.Compose([
-            #tr.RandomCrop(self.par.base_size, self.par.crop_size, fill=255),
+            tr.RandomCrop(self.par.base_size, self.par.crop_size, fill=255),
             tr.RandomColorJitter(),
             tr.RandomHorizontalFlip(),
             tr.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
@@ -92,7 +84,7 @@ class MatterportDataset(data.Dataset):
 
     def transform_val(self, sample):
         composed_transforms = transforms.Compose([
-            #tr.FixedResize(resize_ratio=self.par.resize_ratio),
+            tr.FixScaleCrop(self.par.crop_size),
             tr.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             tr.ToTensor()])
         return composed_transforms(sample)

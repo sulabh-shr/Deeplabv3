@@ -30,4 +30,5 @@ module load cuda/10.1
 source /scratch/yli44/anomaly_env/bin/activate
 
 ## Run your program or script
-python train_matterport.py
+#python train_matterport.py
+python train_ade20k.py

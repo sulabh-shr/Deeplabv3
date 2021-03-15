@@ -19,7 +19,7 @@ class ADE20KDataset(data.Dataset):
 
         self.valid_classes = [1, 4, 6, 8, 9, 11, 15, 16, 19, 20, 23, 24, 25, 28, 29, 38, 40, 48, 51, 66]
         self.void_classes = []
-        for i in range(1, 151): #ADE has 150 semantic categories
+        for i in range(0, 151): #ADE has 150 semantic categories
             if i not in self.valid_classes:
                 self.void_classes.append(i)
         self.class_names = ['wall', 'floor', 'ceiling', 'bed', 'window', 'cabinet', 'door', 'table', 'curtain', 'chair', 'painting', 'sofa', 'shelf', 'mirror', 'carpet', 'bathtub', 'cushion', 'sink', 'fridge', 'toilet']

@@ -19,7 +19,7 @@ class ADE20KDataset(data.Dataset):
 
         self.valid_classes = [1, 4, 6, 8, 9, 11, 15, 16, 19, 20, 23, 24, 25, 28, 29, 38, 40, 48, 51, 66]
         self.void_classes = []
-        for i in range(1, 151): #ADE has 150 semantic categories
+        for i in range(0, 151): #ADE has 150 semantic categories
             if i not in self.valid_classes:
                 self.void_classes.append(i)
         self.class_names = ['wall', 'floor', 'ceiling', 'bed', 'window', 'cabinet', 'door', 'table', 'curtain', 'chair', 'painting', 'sofa', 'shelf', 'mirror', 'carpet', 'bathtub', 'cushion', 'sink', 'fridge', 'toilet']
@@ -46,7 +46,7 @@ class ADE20KDataset(data.Dataset):
         sample = {'image': _img, 'label': _target}
 
         if self.split == 'train':
-            return self.transform_tr(sample)
+            return self.transform_val(sample)
         elif self.split == 'val':
             return self.transform_val(sample)
         elif self.split == 'test':
@@ -84,7 +84,8 @@ class ADE20KDataset(data.Dataset):
 
     def transform_val(self, sample):
         composed_transforms = transforms.Compose([
-            tr.FixScaleCrop(self.par.crop_size),
+            #tr.FixScaleCrop(self.par.crop_size),
+            tr.FixedResize(resize_ratio=self.par.resize_ratio),
             tr.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             tr.ToTensor()])
         return composed_transforms(sample)

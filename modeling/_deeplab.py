@@ -51,7 +51,10 @@ class DeepLabHeadV3Plus(nn.Module):
         all_feature = torch.cat([low_level_feature, output_feature], dim=1)
         x = self.classifier(all_feature)
 
-        return x#, z
+        # for feature extraction
+        z = self.classifier[0](all_feature)
+
+        return x, z
     
     def _init_weight(self):
         for m in self.modules():

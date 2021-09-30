@@ -17,12 +17,24 @@ class ADE20KDataset(data.Dataset):
 
         self.img_list = np.load('{}/{}_img_list.npy'.format(self.dataset_dir, self.split), allow_pickle=True).tolist()
 
-        self.valid_classes = [1, 4, 6, 8, 9, 11, 15, 16, 19, 20, 23, 24, 25, 28, 29, 38, 40, 48, 51, 66]
+        self.valid_classes = [1, 4, 6, 8, 9, 11, 15, 16, 18, 19, 20, 23, 24, 25, 28, 29, 36, 37, 38, 
+                                40, 46, 45, 48, 50, 51, 54, 56, 58, 63, 66, 68, 71, 75, 82, 86, 90, 93,
+                                98, 99, 108, 113, 116, 118, 119, 120, 121, 125, 126, 128, 130, 132, 133, 135, 
+                                136, 139, 140, 142, 143, 144, 145, 146, 147, 148, 149, 150]
         self.void_classes = []
         for i in range(0, 151): #ADE has 150 semantic categories
             if i not in self.valid_classes:
                 self.void_classes.append(i)
-        self.class_names = ['wall', 'floor', 'ceiling', 'bed', 'window', 'cabinet', 'door', 'table', 'curtain', 'chair', 'painting', 'sofa', 'shelf', 'mirror', 'carpet', 'bathtub', 'cushion', 'sink', 'fridge', 'toilet']
+        self.class_names = ['wall', 'floor', 'ceiling', 'bed', 'window', 'cabinet', 'door', 'table', 
+                            'plant', 'curtain', 'chair', 'painting', 'sofa', 'shelf', 'mirror', 'carpet', 
+                            'wardrobe', 'lamp', 'bathtub', 'cushion', 'chest', 
+                            'counter', 'sink', 'fireplace', 'refrigerator', 'stairs', 'showcase', 'pillow',
+                            'bookcase', 'toilet', 'book', 'countertop', 'computer', 'towel', 
+                            'chandelier', 'tv', 'apparel', 'ottoman', 'bottle', 'washing-machine', 'basket', 
+                            'bag', 'cradle', 'oven', 'ball', 'food', 'microwave', 'flowerpot', 'bicycle', 
+                            'dishwasher', 'blanket', 'sculpture', 'sconce', 'vase', 'trash-can', 'fan', 
+                            'crt-screen', 'plate', 'monitor', 'bulletin', 'shower', 'radiator', 'drinking-glass'
+                            'clock', 'flag']
         
         self.NUM_CLASSES = len(self.valid_classes)
 
@@ -57,12 +69,12 @@ class ADE20KDataset(data.Dataset):
         mask[mask==31] = 20 # armchair -> chair
         mask[mask==32] = 20 # seat -> chair
         mask[mask==34] = 16 # desk -> table
-        mask[mask==36] = 11 # wardrobe -> cabinet
+        # mask[mask==36] = 11 # wardrobe -> cabinet
         mask[mask==41] = 1  # base -> wall
         mask[mask==42] = 1  # pillar -> wall
-        mask[mask==45] = 11 # chest -> cabinet
-        mask[mask==54] = 4  # stairs -> floor
-        mask[mask==58] = 40 # pillow -> cushion
+        # mask[mask==45] = 11 # chest -> cabinet
+        # mask[mask==54] = 4  # stairs -> floor
+        # mask[mask==58] = 40 # pillow -> cushion
         mask[mask==65] = 16 # coffee table -> table
         mask[mask==67] = 18 # flower -> plant
 

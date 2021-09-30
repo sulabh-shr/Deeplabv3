@@ -27,6 +27,25 @@ class Normalize(object):
                 'label': mask}
 
 
+class DeNormalizeSingleImage(object):
+    def __init__(self, mean=(0., 0., 0.), std=(1., 1., 1.)):
+        self.mean = np.expand_dims(mean,1)
+        self.mean = np.expand_dims(self.mean,1)
+
+        self.std = std
+
+    def __call__(self, img):
+
+        img = np.array(img).astype(np.float32)
+        for i in range(len(self.std)):
+            img[i,:,:] *= self.std[i]
+
+        img += self.mean
+        img *= 255
+
+        return img
+
+
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 

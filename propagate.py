@@ -1,31 +1,39 @@
 import os
+import math
 import colorsys
 import numpy as np
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
+from matplotlib.lines import Line2D
+
 from PIL import Image
 from projection import project_img
+from time import time
 
-set1 = ['000110001850101.jpg',
-        '000110001000101.jpg',
-        '000110002330101.jpg',
-        '000110007940101.jpg',
-        '000110011150101.jpg',
-        '000110013840101.jpg']
+from dataloaders.datasets.ade20k import ADE20KDataset
+from image_path_examples import paths
 
-set2 = ['000110002210101.jpg',
-        '000110000170101.jpg',
-        '000110002690101.jpg',
-        '000110006860101.jpg',
-        '000110011870101.jpg',
-        '000110013240101.jpg']
-
-set3 = ['000110002570101.jpg',
-        '000110002330101.jpg',
-        '000110003050101.jpg',
-        '000110000260101.jpg',
-        '000110012110101.jpg',
-        '000110012640101.jpg']
+# set1 = ['000110001850101.jpg',
+#         '000110001000101.jpg',
+#         '000110002330101.jpg',
+#         '000110007940101.jpg',
+#         '000110011150101.jpg',
+#         '000110013840101.jpg']
+#
+# set2 = ['000110002210101.jpg',
+#         '000110000170101.jpg',
+#         '000110002690101.jpg',
+#         '000110006860101.jpg',
+#         '000110011870101.jpg',
+#         '000110013240101.jpg']
+#
+# set3 = ['000110002570101.jpg',
+#         '000110002330101.jpg',
+#         '000110003050101.jpg',
+#         '000110000260101.jpg',
+#         '000110012110101.jpg',
+#         '000110012640101.jpg']
 
 viz = True
 
@@ -57,8 +65,73 @@ def class_img_to_color(class_image, colors):
     return color_img, classes_available
 
 
+def color_range(num, s_range=((0.5, 1.0,), (0.5, 1.0), (1,)), l_range=(0.3, 0.5, 0.8),
+                color_scale='hls', viz=True):
+    """
+
+    Args:
+        num: number of colors
+        s_range: tuple of int/floats or tuple of tuples
+            s_range for e
+        l_range: tuple
+
+    Returns:
+        list of colors in color_scale
+    """
+    assert len(s_range) == len(l_range), f'Need to provide s values for each l'
+
+    if isinstance(s_range[0], (int, float)):
+        s_range_per_l = {l_range[idx]: (s_range[idx],) for idx in range(len(l_range))}
+    else:
+        s_range_per_l = {l_range[idx]: s_range[idx] for idx in range(len(l_range))}
+    variations = sum([len(v) for v in s_range_per_l.values()])
+
+    hue_num = math.ceil(num / variations)
+    hue_range = [(1.0 * (i / hue_num)) for i in range(hue_num)]
+    print(hue_range)
+    colors = []
+
+    for h in hue_range:
+        for li in l_range:
+            for s in s_range_per_l[li]:
+
+                color = (h, li, s)
+                if color_scale == 'hls':
+                    colors.append(color)
+                elif color_scale == 'rgb':
+                    colors.append(colorsys.hls_to_rgb(*color))
+                else:
+                    raise TypeError(f'Invalid color scale: {color_scale}')
+
+                if len(colors) == num_classes:
+                    if viz:
+                        img = np.zeros((1080, 1080, 3), dtype=np.float32)
+                        delta = math.floor(math.sqrt(1080 * 1080// len(colors)))
+                        color_count = 0
+                        for x in range(0, 1080, delta):
+                            for y in range(0, 1080, delta):
+                                if color_count == len(colors):
+                                    break
+                                img[x:x+delta, y:y+delta, :] = colorsys.hls_to_rgb(*colors[color_count])
+                                color_count += 1
+                        plt.figure()
+                        plt.imshow(img)
+                        plt.show()
+                        plt.close()
+
+                    return colors
+
+
 if __name__ == '__main__':
-    np.random.seed(1)
+    num_classes = count = 65
+    color_list = color_range(num_classes)
+    color_list.append((0, 1, 0))  # Background class
+    color_list = [colorsys.hls_to_rgb(*i) for i in color_list]
+
+    seed = int(time() % 1000)
+    np.random.seed(seed)
+    print(f'Using seed: {seed}')
+    class_names = ADE20KDataset.class_names
     # src_name = '000110000010101.jpg'
     # src_name = '000110000020101.jpg'
     # src_name = '000110000590101.jpg'
@@ -86,17 +159,18 @@ if __name__ == '__main__':
     image_structs = mat_file['image_structs'][0]
     scale = mat_file['scale'][0][0]
 
-    num_classes = 65
-    color_list = [(1.0 * (i / num_classes), 0.7, 0.5) for i in range(num_classes)]
-    color_list.append((0, 0, 0))  # Background class
-    color_list = [colorsys.hsv_to_rgb(*i) for i in color_list]
-
-    for src1_name, dest_name, src2_name in zip(set1, set2, set3):
+    np.random.shuffle(paths)
+    for path in paths:
+        selected_sources = 2
+        random_dest_idx = np.random.choice(range(2, len(path) - 2))
+        # src_names = [path[random_dest_idx + i] for i in range(-selected_sources // 2, selected_sources // 2 + 1) if i != 0]
+        src_names = [path[random_dest_idx + i] for i in (-2, 2)]
+        dest_name = path[random_dest_idx]
         data = {}
         dest_basename = dest_name.split('.')[0]
         dest_rgb = np.array(Image.open(os.path.join(rgb_folder, dest_name)))
         data['dest_rgb'] = dest_rgb
-        src_names = [src1_name, src2_name]
+
         for src_idx, src_name in enumerate(src_names, start=1):
             src_basename = src_name.split('.')[0]
             src_depth_name = src_basename[:-1] + '3.png'
@@ -159,7 +233,7 @@ if __name__ == '__main__':
 
                 ax1 = fig.add_subplot(231)
                 ax1.imshow(src_rgb)
-                ax1.set_title(f'Src: {src_basename}')
+                ax1.set_title(f'Src{src_idx}: {src_basename}')
 
                 ax5 = fig.add_subplot(235)
                 ax5.imshow(dest_src_rgb)
@@ -212,55 +286,15 @@ if __name__ == '__main__':
 
             for src_idx in range(1, num_src + 1):
                 ax = fig2.add_subplot(2, cols, src_idx)
-                ax.imshow(data[f'src{src_idx}_rgb'])
+                src_color, src_classes = class_img_to_color(data[f'src{src_idx}_labels'], colors=color_list)
+                ax.imshow(src_color)
                 ax.set_title(f'Src{src_idx}')
                 ax2 = fig2.add_subplot(2, cols, src_idx + cols)
                 ax2.imshow(data[f'dest_src{src_idx}_colors'])
+
+            legend_elements = []
+            for c in np.unique(dest_srcs_labels)[:-1]:  # all classes except bg
+                legend_elements.append(Line2D([0], [0], color=color_list[c], label=class_names[c], linestyle='-', marker='P', linewidth=10))
+            fig2.legend(handles=legend_elements, loc='upper right', fontsize=10, ncol=8)
+
             plt.show()
-# src_to_dest_img = np.zeros_like(src)
-# src_to_dest_img[src_transformed_points[:, 1], src_transformed_points[:, 0]] = src[src_survived_points[:, 1], src_survived_points[:, 0]]
-
-# fig = plt.figure(1)
-
-# fig = plt.figure(1)
-# ax1 = fig.add_subplot(231)
-# ax1.imshow(src_rgb)
-# ax1.set_title(f'Src: {src_basename}')
-
-#     src1_to_dest_means = np.zeros_like(coords[f'src1_means'])
-#     src1_to_dest_means[transformed_coords[:, 1], transformed_coords[:, 0]] = coords['src1_means'][src_coords[:, 1], src_coords[:, 0]]
-
-#     src1_to_dest_labels = np.argmax(src1_to_dest_means, axis=0)
-
-# num_class = 65
-# color_list = []
-# for _ in range(num_class):
-#     color_list.append(np.array([np.random.rand(),np.random.rand(),np.random.rand()]))
-
-#     fig = plt.figure(1)
-#     ax1 = fig.add_subplot(231)
-#     ax1.imshow(src)
-#     ax1.set_title('Src')
-
-#     ax5 = fig.add_subplot(235)
-#     ax5.imshow(src_to_dest_img)
-#     ax5.set_title('Src to Dest Transformed')
-
-#     ax2 = fig.add_subplot(232)
-#     ax2.imshow(src_depth)
-#     ax2.set_title('Src Depth')
-
-#     ax3 = fig.add_subplot(233)
-#     ax3.imshow(src_survived)
-#     ax3.set_title('Src survived points')
-
-#     if dest is not None:
-#         ax4 = fig.add_subplot(234)
-#         ax4.imshow(dest)
-#         ax4.set_title('Dest')
-
-#         ax6 = fig.add_subplot(236)
-#         ax6.imshow(dest_org_pixels)
-#         ax6.set_title('Dest pixels in the valid coordinates')
-
-#     plt.show()
